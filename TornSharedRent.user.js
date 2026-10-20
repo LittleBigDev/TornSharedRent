@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TornSharedRent
 // @namespace    littlebigdev.tornsharedrent
-// @version      0.3
+// @version      0.4
 // @description  Shared home expenses between spouses: who paid what for the home you live in, and who owes whom.
 // @match        https://www.torn.com/properties.php*
 // @grant        GM_getValue
@@ -80,6 +80,7 @@
     const status = el("span");
     const save = el("button", {
       textContent: "Save",
+      className: "torn-btn",
       onclick: async () => {
         const key = input.value.trim();
         try {
@@ -94,7 +95,7 @@
     });
     return el("div", {}, [
       el("label", { textContent: "My key " }), input, " ", save, status,
-      el("div", {}, [el("a", { href: MY_KEY_LINK, target: "_blank", textContent: "Create my key" })]),
+      el("div", {}, [el("a", { href: MY_KEY_LINK, target: "_blank", className: "t-blue", textContent: "Create my key" })]),
     ]);
   }
 
@@ -138,7 +139,8 @@
     #${BOX_ID} .tsr-tab { margin-left: 12px; cursor: pointer; opacity: 0.6; }
     #${BOX_ID} .tsr-active { opacity: 1; text-decoration: underline; }
     #${BOX_ID} .tsr-body { padding: 10px; }
-    #${BOX_ID} input { margin: 0 4px; }
+    #${BOX_ID} input { margin: 0 6px; }
+    #${BOX_ID} .tsr-body > div > div { margin-top: 8px; }
   `;
   document.head.append(style);
 
