@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TornSharedRent
 // @namespace    littlebigdev.tornsharedrent
-// @version      0.13
+// @version      0.14
 // @description  Shared home expenses between spouses: who paid what for the home you live in, and who owes whom.
 // @match        https://www.torn.com/properties.php*
 // @grant        GM_getValue
@@ -192,12 +192,9 @@
   }
 
   // Actions on this page (upkeep paid...) are posted to properties.php through Torn's jQuery: refresh the box
-  // once one is done, a bit later so the payment has reached the logs
-  let refresh;
+  // once one is done (Torn answers once the payment is logged), keeping the current box until the new one is ready
   unsafeWindow.jQuery?.(unsafeWindow.document).ajaxComplete((event, xhr, opts) => {
-    if (String(opts.type).toUpperCase() !== "POST" || !String(opts.url).includes("properties.php")) return;
-    clearTimeout(refresh);
-    refresh = setTimeout(render, 2000);
+    if (String(opts.type).toUpperCase() === "POST" && String(opts.url).includes("properties.php")) render(false);
   });
 
   async function infoPane(h) {
@@ -228,9 +225,11 @@
     ]);
   }
 
-  async function render() {
-    shown = null;
-    document.getElementById(WRAP_ID)?.remove();
+  async function render(clear = true) {
+    if (clear) {
+      shown = null;
+      document.getElementById(WRAP_ID)?.remove();
+    }
     const id = shownPropertyId();
     if (!id) return;
 
