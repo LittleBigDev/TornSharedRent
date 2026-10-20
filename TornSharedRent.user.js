@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TornSharedRent
 // @namespace    littlebigdev.tornsharedrent
-// @version      0.2
+// @version      0.3
 // @description  Shared home expenses between spouses: who paid what for the home you live in, and who owes whom.
 // @match        https://www.torn.com/properties.php*
 // @grant        GM_getValue
@@ -55,12 +55,16 @@
       info: el("div", {}, [info]),
       settings: settingsPanel(),
     };
-    const tabs = Object.keys(panels).map((name) => el("button", {
+    const tabs = Object.keys(panels).map((name) => el("a", {
       textContent: name === "info" ? "Info" : "Settings",
       className: "tsr-tab",
       onclick: () => show(name),
     }));
-    const root = el("div", { id: BOX_ID }, [el("div", { className: "tsr-tabs" }, tabs), ...Object.values(panels)]);
+    // Torn's own panel classes, so the box looks like the property panels below it
+    const root = el("div", { id: BOX_ID }, [
+      el("div", { className: "title-black top-round" }, ["Shared rent", el("span", { className: "tsr-tabs" }, tabs)]),
+      el("div", { className: "cont-gray bottom-round tsr-body" }, Object.values(panels)),
+    ]);
     function show(name) {
       Object.entries(panels).forEach(([n, p], i) => {
         p.hidden = n !== name;
@@ -94,7 +98,14 @@
     ]);
   }
 
+  // Box to keep on the page: Torn redraws the property view on its own, so it is put back whenever it gets dropped
+  let shown = null;
+  function place() {
+    if (shown && !shown.isConnected) document.querySelector("#properties-page-wrap .content-title")?.after(shown);
+  }
+
   async function render() {
+    shown = null;
     document.getElementById(BOX_ID)?.remove();
     const id = shownPropertyId();
     if (!id) return;
@@ -116,19 +127,22 @@
     }
     if (shownPropertyId() !== id) return; // hash changed while waiting for the API
     document.getElementById(BOX_ID)?.remove();
-    document.querySelector(".content-wrapper")?.prepend(content);
+    shown = content;
+    place();
   }
 
   const style = document.createElement("style");
   style.textContent = `
-    #${BOX_ID} { margin: 10px 0; padding: 8px 10px; border-radius: 5px; background: var(--default-bg-panel-color, #f2f2f2); color: var(--default-color, #333); }
-    #${BOX_ID} .tsr-tabs { margin-bottom: 8px; }
-    #${BOX_ID} .tsr-tab { margin-right: 6px; padding: 2px 10px; cursor: pointer; }
-    #${BOX_ID} .tsr-active { font-weight: bold; }
+    #${BOX_ID} { margin-bottom: 10px; }
+    #${BOX_ID} .tsr-tabs { float: right; }
+    #${BOX_ID} .tsr-tab { margin-left: 12px; cursor: pointer; opacity: 0.6; }
+    #${BOX_ID} .tsr-active { opacity: 1; text-decoration: underline; }
+    #${BOX_ID} .tsr-body { padding: 10px; }
     #${BOX_ID} input { margin: 0 4px; }
   `;
   document.head.append(style);
 
+  new MutationObserver(place).observe(document.body, { childList: true, subtree: true });
   window.addEventListener("hashchange", render);
   render();
 })();
