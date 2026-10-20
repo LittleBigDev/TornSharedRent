@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TornSharedRent
 // @namespace    littlebigdev.tornsharedrent
-// @version      0.11
+// @version      0.12
 // @description  Shared home expenses between spouses: who paid what for the home you live in, and who owes whom.
 // @match        https://www.torn.com/properties.php*
 // @grant        GM_getValue
@@ -181,13 +181,22 @@
   }
 
   // Box to keep on the page: Torn redraws the property view on its own, so it is put back whenever it gets dropped.
-  // Below the property panel (info view, or options view such as upkeep), else below the page title
+  // Below the property panel (info view, or options view such as upkeep), else below the page title.
+  // Torn also redraws the view after an action on the page (upkeep paid...): the box is then refreshed,
+  // a bit later so the payment has reached the logs.
   let shown = null;
+  let refresh = null;
   function place() {
     if (!shown) return;
     const anchor = document.querySelector("#properties-page-wrap > .property-info, #properties-page-wrap > .property-option > .property-info-cont")
       ?? document.querySelector("#properties-page-wrap .content-title");
-    if (anchor && shown.previousElementSibling !== anchor) anchor.after(shown);
+    if (!anchor || shown.previousElementSibling === anchor) return;
+    if (shown.dataset.placed && !shown.isConnected) {
+      clearTimeout(refresh);
+      refresh = setTimeout(render, 2000);
+    }
+    anchor.after(shown);
+    shown.dataset.placed = "1";
   }
 
   async function infoPane(h) {
