@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         TornSharedRent
 // @namespace    littlebigdev.tornsharedrent
-// @version      0.15
+// @version      0.16
 // @description  Shared home expenses between spouses: who paid what for the home you live in, and who owes whom.
 // @match        https://www.torn.com/properties.php*
+// @match        https://www.torn.com/profiles.php*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_xmlhttpRequest
@@ -218,7 +219,18 @@
       : owed > 0 ? `${spouse.name} owes you ${money(owed)}` : `You owe ${spouse.name} ${money(-owed)}`;
     const date = (at) => new Date(at * 1000).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
     return el("div", {}, [
-      el("div", { className: "tsr-balance", textContent: headline }),
+      el("div", { className: "tsr-balance" }, [
+        headline,
+        owed <= -1 ? el("button", {
+          type: "button",
+          className: "tsr-btn is-primary",
+          textContent: "Pay back",
+          onclick: () => {
+            GM_setValue("payback", { to: spouse.id, amount: Math.round(-owed), message: `Rent share ${tag(h.id)}`, at: Date.now() });
+            location.href = `https://www.torn.com/profiles.php?XID=${spouse.id}`;
+          },
+        }) : "",
+      ]),
       spouseKey ? "" : el("div", { className: "tsr-bad", textContent: "Add your spouse's key in Settings: their payments are missing." }),
       el("table", { className: "tsr-moves" }, moves.slice(0, 10).map((m) => el("tr", {}, [
         el("td", { textContent: date(m.at) }),
@@ -298,7 +310,7 @@
     #${BOX_ID} .tsr-row + .tsr-row { margin-top: 10px; }
     #${BOX_ID} input.tsr-short { width: 70px; }
     #${BOX_ID} .tsr-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 12px; }
-    #${BOX_ID} .tsr-balance { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    #${BOX_ID} .tsr-balance { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 15px; font-weight: 700; margin-bottom: 8px; }
     #${BOX_ID} table.tsr-moves { width: 100%; border-collapse: collapse; font-size: 12px; }
     #${BOX_ID} .tsr-moves td { padding: 4px 6px; border-top: 1px solid var(--tsr-line); }
     #${BOX_ID} .tsr-num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -306,6 +318,37 @@
     #${BOX_ID} .tsr-bad:empty { display: none; }
   `;
   document.head.append(style);
+
+  // Spouse's profile, reached through "Pay back": once the player opens Send cash, fill in the amount and the tagged
+  // message. Sending stays the player's click.
+  function fillPayback() {
+    const p = GM_getValue("payback", null);
+    const xid = Number(new URLSearchParams(location.search).get("XID"));
+    if (!p || p.to !== xid || Date.now() - p.at > 10 * 60 * 1000) return;
+    const msg = document.querySelector("input.send-cash-message-input");
+    if (!msg?.offsetParent || msg.dataset.tsrFilled) return;
+    const amount = msg.form.querySelector("input.input-money:not([type=hidden])");
+    const raw = msg.form.querySelector("input.input-money[type=hidden]");
+    // Torn's own handlers format the amount and enable SEND on these events
+    for (const [input, value] of [[amount, String(p.amount)], [msg, p.message]]) {
+      input.value = value;
+      for (const type of ["input", "keyup", "change"]) input.dispatchEvent(new Event(type, { bubbles: true }));
+    }
+    msg.dataset.tsrFilled = "1";
+    GM_setValue("payback", null);
+    // Torn caps the amount to the cash on hand
+    if (Number(raw.value) < p.amount) {
+      msg.form.append(el("div", {
+        textContent: `You owe ${money(p.amount)} but only have ${money(Number(raw.value))} on you: this pays back part of it.`,
+        style: "color: #f87171; margin-top: 6px;",
+      }));
+    }
+  }
+
+  if (location.pathname === "/profiles.php") {
+    new MutationObserver(fillPayback).observe(document.body, { childList: true, subtree: true });
+    return;
+  }
 
   new MutationObserver(place).observe(document.body, { childList: true, subtree: true });
   window.addEventListener("hashchange", render);
