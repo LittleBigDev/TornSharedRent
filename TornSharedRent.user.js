@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TornSharedRent
 // @namespace    littlebigdev.tornsharedrent
-// @version      0.10
+// @version      0.11
 // @description  Shared home expenses between spouses: who paid what for the home you live in, and who owes whom.
 // @match        https://www.torn.com/properties.php*
 // @grant        GM_getValue
@@ -185,7 +185,7 @@
   let shown = null;
   function place() {
     if (!shown) return;
-    const anchor = document.querySelector("#properties-page-wrap > .property-info, #properties-page-wrap > .property-option")
+    const anchor = document.querySelector("#properties-page-wrap > .property-info, #properties-page-wrap > .property-option > .property-info-cont")
       ?? document.querySelector("#properties-page-wrap .content-title");
     if (anchor && shown.previousElementSibling !== anchor) anchor.after(shown);
   }
