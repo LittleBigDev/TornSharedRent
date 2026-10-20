@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TornSharedRent
 // @namespace    littlebigdev.tornsharedrent
-// @version      0.4
+// @version      0.5
 // @description  Shared home expenses between spouses: who paid what for the home you live in, and who owes whom.
 // @match        https://www.torn.com/properties.php*
 // @grant        GM_getValue
@@ -76,7 +76,8 @@
   }
 
   function settingsPanel() {
-    const input = el("input", { type: "password", value: GM_getValue("my_key", ""), placeholder: "API key", size: 20 });
+    // Same classes as Torn's "How much would you like to pay" field (Torn doesn't reformat a field it didn't set up)
+    const input = el("input", { type: "password", className: "input-money", value: GM_getValue("my_key", ""), placeholder: "API key" });
     const status = el("span");
     const save = el("button", {
       textContent: "Save",
@@ -94,7 +95,10 @@
       },
     });
     return el("div", {}, [
-      el("label", { textContent: "My key " }), input, " ", save, status,
+      el("span", { className: "pay-text", textContent: "My key" }),
+      el("div", { className: "input-money-group" }, [input]),
+      el("span", { className: "btn-wrap silver" }, [el("span", { className: "btn" }, [save])]),
+      status,
       el("div", {}, [el("a", { href: MY_KEY_LINK, target: "_blank", className: "t-blue", textContent: "Create my key" })]),
     ]);
   }
@@ -139,7 +143,9 @@
     #${BOX_ID} .tsr-tab { margin-left: 12px; cursor: pointer; opacity: 0.6; }
     #${BOX_ID} .tsr-active { opacity: 1; text-decoration: underline; }
     #${BOX_ID} .tsr-body { padding: 10px; }
-    #${BOX_ID} input { margin: 0 6px; }
+    #${BOX_ID} .pay-text { margin-right: 8px; }
+    #${BOX_ID} .input-money-group { margin-right: 8px; vertical-align: middle; }
+    #${BOX_ID} .input-money { width: 160px; border-radius: 5px; }
     #${BOX_ID} .tsr-body > div > div { margin-top: 8px; }
   `;
   document.head.append(style);
