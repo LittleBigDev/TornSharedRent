@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TornSharedRent
 // @namespace    littlebigdev.tornsharedrent
-// @version      0.5
+// @version      0.6
 // @description  Shared home expenses between spouses: who paid what for the home you live in, and who owes whom.
 // @match        https://www.torn.com/properties.php*
 // @grant        GM_getValue
@@ -51,37 +51,50 @@
   }
 
   function box(tab, info) {
-    const panels = {
-      info: el("div", {}, [info]),
-      settings: settingsPanel(),
+    const panes = {
+      info: el("div", { className: "tsr-pane" }, [info]),
+      settings: settingsPane(),
     };
-    const tabs = Object.keys(panels).map((name) => el("a", {
-      textContent: name === "info" ? "Info" : "Settings",
+    const tabs = Object.keys(panes).map((name) => el("button", {
+      type: "button",
       className: "tsr-tab",
+      textContent: name === "info" ? "Info" : "Settings",
       onclick: () => show(name),
     }));
-    // Torn's own panel classes, so the box looks like the property panels below it
     const root = el("div", { id: BOX_ID }, [
-      el("div", { className: "title-black top-round" }, ["Shared rent", el("span", { className: "tsr-tabs" }, tabs)]),
-      el("div", { className: "cont-gray bottom-round tsr-body" }, Object.values(panels)),
+      el("div", { className: "tsr-head" }, ["Shared rent"]),
+      el("div", { className: "tsr-tabs" }, tabs),
+      ...Object.values(panes),
     ]);
+    root.classList.toggle("tsr-dark", document.body.classList.contains("dark-mode"));
     function show(name) {
-      Object.entries(panels).forEach(([n, p], i) => {
-        p.hidden = n !== name;
-        tabs[i].classList.toggle("tsr-active", n === name);
+      Object.entries(panes).forEach(([n, p], i) => {
+        p.classList.toggle("is-on", n === name);
+        tabs[i].classList.toggle("is-on", n === name);
       });
     }
     show(tab);
     return root;
   }
 
-  function settingsPanel() {
-    // Same classes as Torn's "How much would you like to pay" field (Torn doesn't reformat a field it didn't set up)
-    const input = el("input", { type: "password", className: "input-money", value: GM_getValue("my_key", ""), placeholder: "API key" });
-    const status = el("span");
+  // One settings line: label and help on the left, controls on the right
+  function row(label, help, controls) {
+    return el("div", { className: "tsr-row" }, [
+      el("div", { className: "tsr-row-text" }, [
+        el("span", { className: "tsr-row-label", textContent: label }),
+        el("span", { className: "tsr-row-help" }, help),
+      ]),
+      el("div", { className: "tsr-row-ctl" }, controls),
+    ]);
+  }
+
+  function settingsPane() {
+    const input = el("input", { type: "password", value: GM_getValue("my_key", ""), placeholder: "API key" });
+    const status = el("span", { className: "tsr-bad" });
     const save = el("button", {
+      type: "button",
+      className: "tsr-btn is-primary",
       textContent: "Save",
-      className: "torn-btn",
       onclick: async () => {
         const key = input.value.trim();
         try {
@@ -90,16 +103,14 @@
           home = undefined;
           render();
         } catch (e) {
-          status.textContent = ` ✕ ${e.message}`;
+          status.textContent = e.message;
         }
       },
     });
-    return el("div", {}, [
-      el("span", { className: "pay-text", textContent: "My key" }),
-      el("div", { className: "input-money-group" }, [input]),
-      el("span", { className: "btn-wrap silver" }, [el("span", { className: "btn" }, [save])]),
+    return el("div", { className: "tsr-pane" }, [
+      row("My key", ["Reads your home, profile and property and money logs. ",
+        el("a", { href: MY_KEY_LINK, target: "_blank", textContent: "Create my key" })], [input, save]),
       status,
-      el("div", {}, [el("a", { href: MY_KEY_LINK, target: "_blank", className: "t-blue", textContent: "Create my key" })]),
     ]);
   }
 
@@ -138,15 +149,44 @@
 
   const style = document.createElement("style");
   style.textContent = `
-    #${BOX_ID} { margin-bottom: 10px; }
-    #${BOX_ID} .tsr-tabs { float: right; }
-    #${BOX_ID} .tsr-tab { margin-left: 12px; cursor: pointer; opacity: 0.6; }
-    #${BOX_ID} .tsr-active { opacity: 1; text-decoration: underline; }
-    #${BOX_ID} .tsr-body { padding: 10px; }
-    #${BOX_ID} .pay-text { margin-right: 8px; }
-    #${BOX_ID} .input-money-group { margin-right: 8px; vertical-align: middle; }
-    #${BOX_ID} .input-money { width: 160px; border-radius: 5px; }
-    #${BOX_ID} .tsr-body > div > div { margin-top: 8px; }
+    #${BOX_ID} {
+      --tsr-bg: #ffffff; --tsr-raise: #f4f6f8; --tsr-line: #dde3e9;
+      --tsr-text: #10161c; --tsr-dim: #4a5763; --tsr-accent: #0d9488; --tsr-bad: #b91c1c;
+      margin: 0 0 10px; border: 1px solid var(--tsr-line); border-radius: 10px; overflow: hidden;
+      background: var(--tsr-bg); color: var(--tsr-text); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    #${BOX_ID}.tsr-dark {
+      --tsr-bg: #171d24; --tsr-raise: #1e262f; --tsr-line: #2c3742;
+      --tsr-text: #e7edf3; --tsr-dim: #b3c0cd; --tsr-accent: #2dd4bf; --tsr-bad: #f87171;
+    }
+    #${BOX_ID} * { box-sizing: border-box; color: inherit; font-family: inherit; }
+    #${BOX_ID} .tsr-head { padding: 8px 10px; font-weight: 700; color: var(--tsr-accent); background: var(--tsr-raise); }
+    #${BOX_ID} .tsr-tabs { display: flex; gap: 2px; padding: 0 6px; background: var(--tsr-raise); border-bottom: 1px solid var(--tsr-line); }
+    #${BOX_ID} .tsr-tab {
+      appearance: none; border: 0; border-bottom: 2px solid transparent; border-radius: 8px 8px 0 0;
+      background: transparent; color: var(--tsr-dim); font-size: 13px; font-weight: 600; padding: 7px 11px; cursor: pointer;
+    }
+    #${BOX_ID} .tsr-tab:hover { color: var(--tsr-text); }
+    #${BOX_ID} .tsr-tab.is-on { color: var(--tsr-accent); border-bottom-color: var(--tsr-accent); background: var(--tsr-bg); }
+    #${BOX_ID} .tsr-pane { display: none; padding: 10px; }
+    #${BOX_ID} .tsr-pane.is-on { display: block; }
+    #${BOX_ID} .tsr-row { display: flex; align-items: center; gap: 12px; }
+    #${BOX_ID} .tsr-row-text { flex: 1 1 auto; min-width: 0; }
+    #${BOX_ID} .tsr-row-label { display: block; font-weight: 600; }
+    #${BOX_ID} .tsr-row-help { display: block; font-size: 11px; color: var(--tsr-dim); }
+    #${BOX_ID} .tsr-row-ctl { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; }
+    #${BOX_ID} a { color: var(--tsr-accent); }
+    #${BOX_ID} input {
+      height: 30px; width: 180px; padding: 0 8px; border: 1px solid var(--tsr-line); border-radius: 6px;
+      background: var(--tsr-bg); color: var(--tsr-text); font-size: 13px;
+    }
+    #${BOX_ID} .tsr-btn {
+      height: 30px; padding: 0 14px; border: 1px solid var(--tsr-line); border-radius: 6px;
+      background: var(--tsr-raise); font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    #${BOX_ID} .tsr-btn.is-primary { background: var(--tsr-accent); border-color: var(--tsr-accent); color: #fff; }
+    #${BOX_ID} .tsr-bad { display: block; color: var(--tsr-bad); font-size: 12px; }
+    #${BOX_ID} .tsr-bad:empty { display: none; }
   `;
   document.head.append(style);
 
