@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         TornSharedRent
 // @namespace    littlebigdev.tornsharedrent
-// @version      0.12
+// @version      0.13
 // @description  Shared home expenses between spouses: who paid what for the home you live in, and who owes whom.
 // @match        https://www.torn.com/properties.php*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_xmlhttpRequest
+// @grant        unsafeWindow
 // @connect      api.torn.com
 // @run-at       document-idle
 // @noframes
@@ -181,23 +182,23 @@
   }
 
   // Box to keep on the page: Torn redraws the property view on its own, so it is put back whenever it gets dropped.
-  // Below the property panel (info view, or options view such as upkeep), else below the page title.
-  // Torn also redraws the view after an action on the page (upkeep paid...): the box is then refreshed,
-  // a bit later so the payment has reached the logs.
+  // Below the property panel (info view, or options view such as upkeep), else below the page title
   let shown = null;
-  let refresh = null;
   function place() {
     if (!shown) return;
     const anchor = document.querySelector("#properties-page-wrap > .property-info, #properties-page-wrap > .property-option > .property-info-cont")
       ?? document.querySelector("#properties-page-wrap .content-title");
-    if (!anchor || shown.previousElementSibling === anchor) return;
-    if (shown.dataset.placed && !shown.isConnected) {
-      clearTimeout(refresh);
-      refresh = setTimeout(render, 2000);
-    }
-    anchor.after(shown);
-    shown.dataset.placed = "1";
+    if (anchor && shown.previousElementSibling !== anchor) anchor.after(shown);
   }
+
+  // Actions on this page (upkeep paid...) are posted to properties.php through Torn's jQuery: refresh the box
+  // once one is done, a bit later so the payment has reached the logs
+  let refresh;
+  unsafeWindow.jQuery?.(unsafeWindow.document).ajaxComplete((event, xhr, opts) => {
+    if (String(opts.type).toUpperCase() !== "POST" || !String(opts.url).includes("properties.php")) return;
+    clearTimeout(refresh);
+    refresh = setTimeout(render, 2000);
+  });
 
   async function infoPane(h) {
     const me = (await api("v2/user/profile", GM_getValue("my_key"))).profile.id;
