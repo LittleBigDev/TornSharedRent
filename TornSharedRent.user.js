@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TornSharedRent
 // @namespace    littlebigdev.tornsharedrent
-// @version      0.7
+// @version      0.8
 // @description  Shared home expenses between spouses: who paid what for the home you live in, and who owes whom.
 // @match        https://www.torn.com/properties.php*
 // @grant        GM_getValue
@@ -18,6 +18,7 @@
   "use strict";
 
   const BOX_ID = "tsr-box";
+  const WRAP_ID = "tsr-wrap"; // the box and the Torn separator above it
   const MY_KEY_LINK = "https://www.torn.com/preferences.php#tab=api?step=addNewKey&title=coloc&user=property,profile,log&logIds=89,112";
 
   function api(path, key) {
@@ -126,7 +127,7 @@
 
   async function render() {
     shown = null;
-    document.getElementById(BOX_ID)?.remove();
+    document.getElementById(WRAP_ID)?.remove();
     const id = shownPropertyId();
     if (!id) return;
 
@@ -146,8 +147,8 @@
       content ??= box("info", `You live here (${h.used_by.map((u) => u.name).join(", ")}).`);
     }
     if (shownPropertyId() !== id) return; // hash changed while waiting for the API
-    document.getElementById(BOX_ID)?.remove();
-    shown = content;
+    document.getElementById(WRAP_ID)?.remove();
+    shown = el("div", { id: WRAP_ID }, [el("hr", { className: "page-head-delimiter m-top10 m-bottom10" }), content]);
     place();
   }
 
