@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TornSharedRent
 // @namespace    littlebigdev.tornsharedrent
-// @version      0.16
+// @version      0.17
 // @description  Shared home expenses between spouses: who paid what for the home you live in, and who owes whom.
 // @match        https://www.torn.com/properties.php*
 // @match        https://www.torn.com/profiles.php*
@@ -41,7 +41,8 @@
     return Number(new URLSearchParams(location.hash.replace(/^#\/?/, "")).get("ID")) || null;
   }
 
-  // Property the player lives in, fetched once per page load (the properties page only changes its hash)
+  // Property the player lives in, fetched again on each new view: a tab left open across a move would otherwise
+  // keep the old home and show nothing on the new one
   let home;
   async function currentHome(key) {
     home ??= (await api("v2/user/property", key)).property;
@@ -243,6 +244,7 @@
 
   async function render(clear = true) {
     if (clear) {
+      home = undefined;
       shown = null;
       document.getElementById(WRAP_ID)?.remove();
     }
